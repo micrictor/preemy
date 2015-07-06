@@ -23,8 +23,8 @@
 *.sdf
 *.opensdf
 *.unsuccessfulbuild
-preemy/ipch/
-preemy/[Oo]bj/
-preemy/[Bb]in
-preemy/[Dd]ebug*/
-preemy/[Rr]elease*/
+*/ipch/
+*/[Oo]bj/
+*/[Bb]in
+*/[Dd]ebug*/
+*/[Rr]elease*/
