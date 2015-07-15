@@ -154,7 +154,6 @@ namespace preemy {
 		DWORD dwTrue = 1;
 		DWORD dwFalse = 0;
 
-		// BEGIN ENABLE OF AppInit_DLLs
 		if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows"),
 		0, KEY_SET_VALUE, &key) != ERROR_SUCCESS)
 		{
@@ -166,6 +165,7 @@ namespace preemy {
 			return;
 		}
 
+		// BEGIN ENABLE OF AppInit_DLLs
 		if(RegSetValueEx(key, TEXT("LoadAppInit_DLLs"), 0, REG_DWORD, (const BYTE*)&dwTrue, dwSize != ERROR_SUCCESS)
 		{
 			MessageBox::Show(
@@ -186,8 +186,35 @@ namespace preemy {
 			RegCloseKey(key);
 			return;
 		}
-
 		// END ENABLE OF AppInit_DLLs
+
+		// TODO
+		// Add in selected modules to AppInit_DLLs
+		// Pointless to do this before we unfuck WoW
+
+		// BEGIN DISABLE OF AppInit_DLLs
+		if(RegSetValueEx(key, TEXT("LoadAppInit_DLLs"), 0, REG_DWORD, (const BYTE*)&dwFalse, dwSize != ERROR_SUCCESS)
+		{
+			MessageBox::Show(
+				"ERROR! Registry key could not be written. Are you running as admin?",
+				"ERROR!",
+				MessageBoxButtons::OK,
+				MessageBoxIcon::Error);
+			RegCloseKey(key);
+			return;
+		}
+		if(RegSetValueEx(key, TEXT("RequireSignedAppInit_DLLs"), 0, REG_DWORD, (PBYTE)&dwTrue, dwSize) != ERROR_SUCCESS)
+		{
+			MessageBox::Show(
+				"ERROR! Registry key could not be written. Are you running as admin?",
+				"ERROR!",
+				MessageBoxButtons::OK,
+				MessageBoxIcon::Error);
+			RegCloseKey(key);
+			return;
+		}
+		// END DISABLE OF AppInit_DLLs
+
 		RegCloseKey(key);
 	}
 };
