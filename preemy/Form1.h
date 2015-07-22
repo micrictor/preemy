@@ -2,7 +2,6 @@
 #include "Windows.h"
 #include <string>
 #include <msclr\marshal.h>
-#pragma comment(lib, "Ws2_32.lib")
 
 namespace preemy {
 
@@ -170,7 +169,7 @@ namespace preemy {
     		return;
     	} 
 
-		#define DLL_NAME "C:\\Users\\w00t\\send_module.dll"
+		#define DLL_NAME "C:\\Users\\w00t\\rand_module.dll"
     	LoadLibAddress      =   (LPVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
     	MemAlloc            =   (LPVOID)VirtualAllocEx(proc_info.hProcess, NULL, strlen(DLL_NAME)+1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
    	 	WriteProcessMemory(proc_info.hProcess, (LPVOID)MemAlloc, DLL_NAME, strlen(DLL_NAME)+1, NULL);
