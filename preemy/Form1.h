@@ -1,6 +1,8 @@
 #pragma once
 #include "Windows.h"
 #include <string>
+#include <msclr\marshal.h>
+#pragma comment(lib, "Ws2_32.lib")
 
 namespace preemy {
 
@@ -10,6 +12,7 @@ namespace preemy {
 	using namespace System::Windows::Forms;
 	using namespace System::Data;
 	using namespace System::Drawing;
+	using namespace msclr::interop;
 
 	/// <summary>
 	/// Summary for Form1
@@ -95,6 +98,7 @@ namespace preemy {
 			// 
 			this->openFileDialog1->FileName = L"openFileDialog1";
 			this->openFileDialog1->Filter = L"Executables (*.exe)|*.exe";
+			this->openFileDialog1->FileOk += gcnew System::ComponentModel::CancelEventHandler(this, &Form1::openFileDialog1_FileOk);
 			// 
 			// button2
 			// 
@@ -136,86 +140,48 @@ namespace preemy {
 	}
 	private: System::Void button2_Click(System::Object^  sender, System::EventArgs^  e) 
 	{
-		/* 
-		*  Fucking Microsoft virtualizes the registry so these all actually go to
-		*    HKLM\SOFTWARE\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Windows
-		*  Google says setting the UAC manifest to requireAdmin will fix it
-		*  It fucking didn't.
-		*  Fuck.
-		*  WoW.
-		*  Virtualization.
-		*
-		*  I'm still going to write everything as if these registry edits actually
-		*    work, and hopefully I'll be able to break Windowns on Windowns later
+		/*
+		* AppInit_DLLs are a fucking retarded way to do this
+		* Instead, let's spawn the process specified by the user and just inject into it
+		* This would also allow us to potentially allow users to select running processes
 		*/
-		HKEY key;
+		LPVOID LoadLibAddress;
+		LPVOID MemAlloc;
+		
+		PROCESS_INFORMATION proc_info;
+		STARTUPINFO si;
 
-		DWORD dwSize = sizeof(DWORD);
-		DWORD dwTrue = 1;
-		DWORD dwFalse = 0;
+		// Null out the structs so nothing weird happens
+    	ZeroMemory( &si, sizeof(si) );
+    	si.cb = sizeof(si);
+    	
+    	ZeroMemory( &proc_info, sizeof(proc_info) );
 
-		if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows"),
-		0, KEY_SET_VALUE, &key) != ERROR_SUCCESS)
-		{
-			MessageBox::Show(
-				"ERROR! Registry key could not be opened. Are you running as admin?",
-				"ERROR!",
+		marshal_context^ context = gcnew marshal_context();
+		LPWSTR exec_name = const_cast<wchar_t*>(context->marshal_as<const wchar_t*>(this->textBox1->Text));
+
+    	if( !CreateProcess( NULL, exec_name, NULL, NULL, FALSE, 0, NULL, NULL, &si, &proc_info ) )         
+    	{
+    		MessageBox::Show(
+				"ERROR! Process could not be opened!",
+				"ERROR",
 				MessageBoxButtons::OK,
 				MessageBoxIcon::Error);
-			return;
-		}
+    		return;
+    	} 
 
-		// BEGIN ENABLE OF AppInit_DLLs
-		if(RegSetValueEx(key, TEXT("LoadAppInit_DLLs"), 0, REG_DWORD, (const BYTE*)&dwTrue, dwSize != ERROR_SUCCESS)
-		{
-			MessageBox::Show(
-				"ERROR! Registry key could not be written. Are you running as admin?",
-				"ERROR!",
-				MessageBoxButtons::OK,
-				MessageBoxIcon::Error);
-			RegCloseKey(key);
-			return;
-		}
-		if(RegSetValueEx(key, TEXT("RequireSignedAppInit_DLLs"), 0, REG_DWORD, (PBYTE)&dwFalse, dwSize) != ERROR_SUCCESS)
-		{
-			MessageBox::Show(
-				"ERROR! Registry key could not be written. Are you running as admin?",
-				"ERROR!",
-				MessageBoxButtons::OK,
-				MessageBoxIcon::Error);
-			RegCloseKey(key);
-			return;
-		}
-		// END ENABLE OF AppInit_DLLs
+		#define DLL_NAME "C:\\Users\\w00t\\send_module.dll"
+    	LoadLibAddress      =   (LPVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
+    	MemAlloc            =   (LPVOID)VirtualAllocEx(proc_info.hProcess, NULL, strlen(DLL_NAME)+1, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+   	 	WriteProcessMemory(proc_info.hProcess, (LPVOID)MemAlloc, DLL_NAME, strlen(DLL_NAME)+1, NULL);
+    	CreateRemoteThread(proc_info.hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibAddress, (LPVOID)MemAlloc, NULL, NULL);
 
-		// TODO
-		// Add in selected modules to AppInit_DLLs
-		// Pointless to do this before we unfuck WoW
-
-		// BEGIN DISABLE OF AppInit_DLLs
-		if(RegSetValueEx(key, TEXT("LoadAppInit_DLLs"), 0, REG_DWORD, (const BYTE*)&dwFalse, dwSize != ERROR_SUCCESS)
-		{
-			MessageBox::Show(
-				"ERROR! Registry key could not be written. Are you running as admin?",
-				"ERROR!",
-				MessageBoxButtons::OK,
-				MessageBoxIcon::Error);
-			RegCloseKey(key);
-			return;
-		}
-		if(RegSetValueEx(key, TEXT("RequireSignedAppInit_DLLs"), 0, REG_DWORD, (PBYTE)&dwTrue, dwSize) != ERROR_SUCCESS)
-		{
-			MessageBox::Show(
-				"ERROR! Registry key could not be written. Are you running as admin?",
-				"ERROR!",
-				MessageBoxButtons::OK,
-				MessageBoxIcon::Error);
-			RegCloseKey(key);
-			return;
-		}
-		// END DISABLE OF AppInit_DLLs
-
-		RegCloseKey(key);
+		CloseHandle( proc_info.hProcess );
+		VirtualFreeEx( proc_info.hProcess, (LPVOID)MemAlloc, 0, MEM_RELEASE );
+	}
+	private: System::Void openFileDialog1_FileOk(System::Object^  sender, System::ComponentModel::CancelEventArgs^  e) 
+	{
+		this->textBox1->Text = this->openFileDialog1->FileName;
 	}
 };
 }
